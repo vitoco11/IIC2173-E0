@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:14
+    container_name: database_energyshark
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=energyshark
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d energyshark"] # chequeamos que todo este bien con la BD constantemente
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  master:
+    build: . 
+    container_name: master
+    command: node master.js
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy # Espera a que la BD esté lista antes de arrancar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"] # es localhost y no master ya que se ejecuta desde dentro del contenedor del master
+      # lo que hace es hacer un app.get('/') en el master, que devuelve 200 si está vivo y escuchando
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  connector:
+    build: .
+    container_name: connector
+    command: node connector.js
+    depends_on:
+      master:
+        condition: service_healthy # Espera a que el master esté listo antes de arrancar
+    healthcheck:
+      test: ["CMD", "test", "-f", "connector.js"] # simplemente verifica que el archivo connector.js exista en el contenedor
+      interval: 10s
+      timeout: 5s
+      retries: 3
