@@ -10,6 +10,10 @@ async function connectToRabbitMQ() {
         
         // nos conectamos al servidor
         const connection = await amqp.connect(AMQP_URL);
+        connection.on("error", function(err) {
+            console.error("Corte de RabbitMQ detectado. Docker lo reiniciará:", err.message);
+            process.exit(1);
+        });
         
         // creamos un canal
         const channel = await connection.createChannel();
